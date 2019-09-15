@@ -256,8 +256,32 @@ lex0()
       case 24: // /
         if (c=='=')
           return node_new(TKN_ADIV);
+        if (c=='*') {
+          state = 40;
+          break;
+        }
+        if (c=='/') {
+          state = 42;
+          break;
+        }
         ungetc(c, lex_in);
         return node_new('/');
+        
+      case 40: // /*...
+        if (c=='*')
+          state = 41;
+        break;
+      case 41: // /*...*
+        if (c=='/')
+          state = 0;
+        else if (c!='*')
+          state = 40;
+        break;
+      case 42: // //...
+        if (c=='\n')
+          state = 0;
+        break;
+        
       case 25: // %
         if (c=='=')
           return node_new(TKN_AMOD);
