@@ -14,6 +14,7 @@ typedef enum {
   TKN_STATEMENT_SEQ,
   
   // A.6 Declarations
+  TKN_DECLARATION_SEQ,
   TKN_DECLARATOR,
   TKN_DECL_SPECIFIER_SEQ,
 
@@ -74,7 +75,12 @@ typedef enum {
   TKN_DOUBLE,
   TKN_VOID,
 
-  TKN_VALUE,
+//  TKN_VALUE_CHAR,
+//  TKN_VALUE_SHORT,
+  TKN_VALUE_INT,
+//  TKN_VALUE_LONG,
+//  TKN_VALUE_FLOAT,
+  TKN_VALUE_DOUBLE,
   TKN_STRING,
   
   TKN_ELLIPSIS,   // '...'
@@ -107,11 +113,19 @@ typedef enum {
 typedef struct _node_t {
   int tkn;
   char *text;
+  union {
+    // int8_t c;
+    // int16_t s;
+    int32_t i;
+    // int64_t l;
+    // float f;
+    double d;
+  } value;
   struct _node_t *next, *down;
 } node_t;
 
 extern FILE* lex_in;
-node_t* compile(FILE *in);
+node_t* parse(FILE *in);
 node_t* lex();
 void unlex(node_t*);
 void lexfree(node_t*);
@@ -126,4 +140,7 @@ inline node_t *node_new(int tkn) {
   return node_new(static_cast<token_e>(tkn));
 }
 node_t *node_new_txt(token_e tkn, const char *txt);
-void node_compile(FILE *out, node_t *n, unsigned indent=0);
+node_t* node_new_int(const char *txt);
+node_t* node_new_double(const char *txt);
+
+void node_pretty_print(FILE *out, node_t *n, unsigned indent=0);

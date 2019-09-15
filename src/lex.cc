@@ -354,8 +354,7 @@ lex0()
           yyput(c);
         } else {
           ungetc(c, lex_in);
-          // return node_new(value_t(atol(yytext)));
-	  return node_new_txt(TKN_VALUE, yytext);
+	  return node_new_int(yytext);
         }
         break;  
     }
@@ -444,6 +443,20 @@ node_new_txt(token_e tkn, const char *txt)
   return o;
 }
 
+node_t*
+node_new_int(const char *txt) {
+  node_t *n = node_new_txt(TKN_VALUE_INT, txt);
+  n->value.i = atoi(txt);
+  return n;
+}
+
+node_t*
+node_new_double(const char *txt) {
+  node_t *n = node_new_txt(TKN_VALUE_DOUBLE, txt);
+  n->value.d = atof(txt);
+  return n;
+}
+
 void
 node_append(node_t *n0, node_t *n1)
 {
@@ -507,6 +520,9 @@ node_print0(FILE *out, node_t *n, unsigned depth)
     case TKN_PARAMETER_DECLARATION_LIST:
       fprintf(out, "parameter-declaration-list\n");
       break;
+    case TKN_DECLARATION_SEQ:
+      fprintf(out, "declaration-seq\n");
+      break;
     case TKN_DECLARATOR:
       fprintf(out, "declarator\n");
       break;
@@ -526,8 +542,11 @@ node_print0(FILE *out, node_t *n, unsigned depth)
     case TKN_CLASS_NAME:
       fprintf(out, "class-name %s\n", n->text);
       break;
-    case TKN_VALUE:
-      fprintf(out, "value %s\n", n->text);
+    case TKN_VALUE_INT:
+      fprintf(out, "value-int %i\n", n->value.i);
+      break;
+    case TKN_VALUE_DOUBLE:
+      fprintf(out, "value-double %f\n", n->value.d);
       break;
     case TKN_STRING:
       fprintf(out, "string \"%s\"\n", n->text);
@@ -550,7 +569,7 @@ node_print0(FILE *out, node_t *n, unsigned depth)
 }
 
 void
-node_compile(FILE *out, node_t *n, unsigned indent)
+node_pretty_print(FILE *out, node_t *n, unsigned indent)
 {
   assert(n);
   switch(n->tkn) {
@@ -558,30 +577,35 @@ node_compile(FILE *out, node_t *n, unsigned indent)
       print_indent(out, indent);
       fprintf(out, "none\n");
       break;
+    case TKN_DECLARATION_SEQ:
+      for (node_t *p = n->down; p; p=p->next) {
+        node_pretty_print(out, p, indent);
+      }
+      break;
     case TKN_STATEMENT_SEQ:
       for (node_t *p = n->down; p; p=p->next) {
-        node_compile(out, p, indent);
+        node_pretty_print(out, p, indent);
       }
       break;
     case TKN_EXPRESSION:
 //      node_print(out, n);
       assert(n->down);
-      node_compile(out, n->down, indent);
+      node_pretty_print(out, n->down, indent);
       break;
     case TKN_EXPRESSION_LIST:
       for (node_t *p = n->down; p; p=p->next) {
-        node_compile(out, p, indent);
+        node_pretty_print(out, p, indent);
         if (p->next)
           fprintf(out, ", ");
       }
       break;
     case TKN_DECLARATOR:
       assert(n->down->tkn == TKN_DECL_SPECIFIER_SEQ);
-      node_compile(out, n->down->down, indent);
+      node_pretty_print(out, n->down->down, indent);
       assert(n->down->next->tkn == TKN_INIT_DECLARATOR_LIST);
       fprintf(out, " ");
       for (node_t *p = n->down->next->down; p; p=p->next) {
-        node_compile(out, p, indent);
+        node_pretty_print(out, p, indent);
         if (p->next)
           fprintf(out, ", ");
       }
@@ -590,19 +614,23 @@ node_compile(FILE *out, node_t *n, unsigned indent)
     case TKN_PARAMETER_DECLARATION_LIST:
       for(node_t *p = n->down; p; p=p->next) {
         assert(p->tkn == TKN_DECL_SPECIFIER_SEQ);
-        node_compile(out, p, indent);
+        node_pretty_print(out, p, indent);
         if (p->next)
           fprintf(out, ", ");
       }
       break;
     case TKN_DECL_SPECIFIER_SEQ:
       for(node_t *p = n->down; p; p=p->next) {
-        node_compile(out, p, indent);
+        node_pretty_print(out, p, indent);
         if (p->next) {
-          if (p->next->tkn == TKN_VALUE)
-            fprintf(out, " = ");
-          else
-            fprintf(out, " ");
+          switch(p->next->tkn) {
+            case TKN_VALUE_INT:
+            case TKN_VALUE_DOUBLE:
+              fprintf(out, " = ");
+              break;
+            default:
+              fprintf(out, " ");
+          }
         }
       }
       break;
@@ -616,29 +644,29 @@ node_compile(FILE *out, node_t *n, unsigned indent)
       assert(n->down->tkn == TKN_DECL_SPECIFIER_SEQ);
       assert(n->down->next->tkn == TKN_PARAMETER_DECLARATION_LIST);
       assert(n->down->next->next->tkn == TKN_STATEMENT_SEQ);
-      node_compile(out, n->down, indent+1);
+      node_pretty_print(out, n->down, indent+1);
       fprintf(out, " %s(", n->text);
-      node_compile(out, n->down->next, indent+1);
+      node_pretty_print(out, n->down->next, indent+1);
       fprintf(out, ") {\n");
-      node_compile(out, n->down->next->next, indent+1);
+      node_pretty_print(out, n->down->next->next, indent+1);
       fprintf(out, "}\n");
       break;
     case TKN_FUNCTION_CALL:
       print_indent(out, indent);
       fprintf(out, "%s(", n->down->text);
-      node_compile(out, n->down->next, indent);
+      node_pretty_print(out, n->down->next, indent);
       fprintf(out, ");\n");
       break;
     case TKN_IF:
       print_indent(out, indent);
       fprintf(out, "if (");
-      node_compile(out, n->down, indent);
+      node_pretty_print(out, n->down, indent);
       fprintf(out, ") {\n");
-      node_compile(out, n->down->next, indent+1);
+      node_pretty_print(out, n->down->next, indent+1);
       if (n->down->next->next) {
         print_indent(out, indent);
         fprintf(out, "} else {\n");
-        node_compile(out, n->down->next->next, indent+1);
+        node_pretty_print(out, n->down->next->next, indent+1);
       }
       print_indent(out, indent);
       fprintf(out, "}\n");
@@ -646,7 +674,7 @@ node_compile(FILE *out, node_t *n, unsigned indent)
     case TKN_RETURN:
       print_indent(out, indent);
       fprintf(out, "return (");
-      node_compile(out, n->down, indent);
+      node_pretty_print(out, n->down, indent);
       fprintf(out, ");\n");
       break;
     case '+':
@@ -662,15 +690,18 @@ node_compile(FILE *out, node_t *n, unsigned indent)
     case TKN_GE:
     case '<':
     case '>':
-       node_compile(out, n->down);
+       node_pretty_print(out, n->down);
        fprintf(out, "%s", keywordByToken(n->tkn));
-       node_compile(out, n->down->next, indent);
+       node_pretty_print(out, n->down->next, indent);
        break;
     case TKN_CLASS_NAME:
       fprintf(out, "%s\n", n->text);
       break;
-    case TKN_VALUE:
-      fprintf(out, "%s", n->text);
+    case TKN_VALUE_INT:
+      fprintf(out, "%i", n->value.i);
+      break;
+    case TKN_VALUE_DOUBLE:
+      fprintf(out, "%f", n->value.d);
       break;
     case TKN_STRING:
       fprintf(out, "\"%s\"", n->text);
@@ -681,7 +712,7 @@ node_compile(FILE *out, node_t *n, unsigned indent)
     case TKN_DOUBLE:
     case TKN_TRUE:
     case TKN_FALSE:
-      fprintf(out, keywordByToken(n->tkn));
+      fprintf(out, "%s", keywordByToken(n->tkn));
       break;
     default: {
       const char *name = keywordByToken(n->tkn);

@@ -191,7 +191,7 @@ error(const char *message)
 }
 
 node_t*
-compile(FILE *in)
+parse(FILE *in)
 {
   if (lex_in)
     error("lex/parse are not re-entrant");
@@ -257,7 +257,9 @@ primary_expression()
       printf("primary-expression -> identifier\n");
     return n0;
   }
-  if (n0->tkn == TKN_VALUE) {
+  if ( n0->tkn == TKN_VALUE_INT ||
+       n0->tkn == TKN_VALUE_DOUBLE )
+  {
     if (trace)
       printf("primary-expression -> value\n");
     return n0;
@@ -1721,24 +1723,15 @@ declaration-seq:
 node_t*
 declaration_seq()
 {
-  node_t *n;
+  node_t *seq = 0;
   while(true) {
-    n = declaration();
-    if (!n)
-      break;
-    switch(n->tkn) {
-      case TKN_FUNCTION:
-
-        printf("define function '%s'\n", n->text);
-        node_print(stderr, n);
-        printf("compile function to:\n");
-        node_compile(stderr, n);
-        break;
-      default:
-        error("unhandled declaration token in declaration-sequence\n");
-    }
+    node_t *decl = declaration();
+    if (!decl)
+      return seq;
+    if (!seq)
+      seq = node_new(TKN_DECLARATION_SEQ);
+    node_append(seq, decl);
   }
-  return 0;
 }
 
 /*
