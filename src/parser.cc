@@ -474,6 +474,7 @@ postfix_expression()
       node_print0(stderr, n3, 1);
     }
     
+    // non-standard here-document extension
     node_t *n4 = lex();
     if (n4 && n4->tkn==TKN_SHL) {
       lexfree(n4);
