@@ -457,6 +457,21 @@ node_new_double(const char *txt) {
   return n;
 }
 
+node_t*
+node_new_value(int value) {
+  node_t *n = node_new(TKN_VALUE_INT);
+  n->value.i = value;
+  return n;
+}
+
+node_t*
+node_new_value(double value) {
+  node_t *n = node_new(TKN_VALUE_DOUBLE);
+  n->value.i = value;
+  return n;
+}
+
+
 void
 node_append(node_t *n0, node_t *n1)
 {

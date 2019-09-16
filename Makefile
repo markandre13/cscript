@@ -2,11 +2,11 @@
 
 EXEC=cscript
 
-CXXFLAGS=-std=gnu++11
+CXXFLAGS=-std=gnu++11 -O0 -gmodules -Wall -Werror -Wno-unused-const-variable -Wno-unused-variable -Wno-unneeded-internal-declaration
 
 all: $(EXEC)
 
-SRC_SHARED = src/lex.cc src/parser.cc
+SRC_SHARED = src/lex.cc src/parser.cc src/runtime.cc
 
 SRC_EXEC = src/main.cc src/fmemopen.c
 

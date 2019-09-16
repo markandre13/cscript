@@ -142,5 +142,8 @@ inline node_t *node_new(int tkn) {
 node_t *node_new_txt(token_e tkn, const char *txt);
 node_t* node_new_int(const char *txt);
 node_t* node_new_double(const char *txt);
+node_t* node_new_value(int value);
+node_t* node_new_value(double value);
+
 
 void node_pretty_print(FILE *out, node_t *n, unsigned indent=0);
